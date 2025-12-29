@@ -1,0 +1,89 @@
+{
+  "config": {
+    "step": {
+      "user": {
+        "title": "Подключение к Nevoton Komfort",
+        "description": "Введите параметры подключения к контроллеру сауны Nevoton Komfort.",
+        "data": {
+          "host": "Хост",
+          "password": "Пароль"
+        },
+        "data_description": {
+          "host": "IP-адрес или имя хоста устройства Nevoton Komfort",
+          "password": "Пароль устройства (по умолчанию: admin)"
+        }
+      },
+      "reconfigure": {
+        "title": "Перенастройка Nevoton Komfort",
+        "description": "Обновите параметры подключения к контроллеру сауны Nevoton Komfort.",
+        "data": {
+          "host": "Хост",
+          "password": "Пароль"
+        }
+      }
+    },
+    "error": {
+      "cannot_connect": "Не удалось подключиться к устройству",
+      "invalid_auth": "Неверный пароль",
+      "unknown": "Неожиданная ошибка"
+    },
+    "abort": {
+      "already_configured": "Устройство уже настроено",
+      "wrong_device": "Это другое устройство, отличное от первоначально настроенного"
+    }
+  },
+  "entity": {
+    "climate": {
+      "sauna": {
+        "name": "Терморегулятор"
+      }
+    },
+    "light": {
+      "light": {
+        "name": "Освещение"
+      }
+    },
+    "switch": {
+      "main_power": {
+        "name": "Главное питание"
+      },
+      "fan": {
+        "name": "Вентилятор"
+      },
+      "steam_generator": {
+        "name": "Парогенератор"
+      },
+      "delayed_start": {
+        "name": "Отложенный старт"
+      }
+    },
+    "sensor": {
+      "current_temperature": {
+        "name": "Текущая температура"
+      },
+      "current_humidity": {
+        "name": "Текущая влажность"
+      },
+      "heat_time_remaining": {
+        "name": "Оставшееся время нагрева"
+      },
+      "delayed_start_time": {
+        "name": "Время отложенного старта"
+      },
+      "status": {
+        "name": "Статус"
+      }
+    },
+    "number": {
+      "target_humidity": {
+        "name": "Целевая влажность"
+      },
+      "heat_timer": {
+        "name": "Таймер нагрева"
+      },
+      "delayed_start_timer": {
+        "name": "Таймер отложенного старта"
+      }
+    }
+  }
+}

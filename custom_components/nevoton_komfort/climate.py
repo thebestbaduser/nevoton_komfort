@@ -58,7 +58,6 @@ class NevotonKomfortClimate(NevotonKomfortEntity, ClimateEntity):
     def __init__(self, coordinator: NevotonKomfortCoordinator) -> None:
         """Initialize the climate entity."""
         super().__init__(coordinator, "climate")
-        self._attr_name = None  # Use device name
 
     @property
     def current_temperature(self) -> float | None:
