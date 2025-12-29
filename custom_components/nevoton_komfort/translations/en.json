@@ -1,0 +1,89 @@
+{
+  "config": {
+    "step": {
+      "user": {
+        "title": "Connect to Nevoton Komfort",
+        "description": "Enter the connection details for your Nevoton Komfort sauna controller.",
+        "data": {
+          "host": "Host",
+          "password": "Password"
+        },
+        "data_description": {
+          "host": "IP address or hostname of the Nevoton Komfort device",
+          "password": "Device password (default: admin)"
+        }
+      },
+      "reconfigure": {
+        "title": "Reconfigure Nevoton Komfort",
+        "description": "Update the connection details for your Nevoton Komfort sauna controller.",
+        "data": {
+          "host": "Host",
+          "password": "Password"
+        }
+      }
+    },
+    "error": {
+      "cannot_connect": "Failed to connect to device",
+      "invalid_auth": "Invalid password",
+      "unknown": "Unexpected error"
+    },
+    "abort": {
+      "already_configured": "Device is already configured",
+      "wrong_device": "This is a different device than originally configured"
+    }
+  },
+  "entity": {
+    "climate": {
+      "sauna": {
+        "name": "Sauna"
+      }
+    },
+    "light": {
+      "light": {
+        "name": "Light"
+      }
+    },
+    "switch": {
+      "main_power": {
+        "name": "Main Power"
+      },
+      "fan": {
+        "name": "Fan"
+      },
+      "steam_generator": {
+        "name": "Steam Generator"
+      },
+      "delayed_start": {
+        "name": "Delayed Start"
+      }
+    },
+    "sensor": {
+      "current_temperature": {
+        "name": "Current Temperature"
+      },
+      "current_humidity": {
+        "name": "Current Humidity"
+      },
+      "heat_time_remaining": {
+        "name": "Heat Time Remaining"
+      },
+      "delayed_start_time": {
+        "name": "Delayed Start Time"
+      },
+      "status": {
+        "name": "Status"
+      }
+    },
+    "number": {
+      "target_humidity": {
+        "name": "Target Humidity"
+      },
+      "heat_timer": {
+        "name": "Heat Timer"
+      },
+      "delayed_start_timer": {
+        "name": "Delayed Start Timer"
+      }
+    }
+  }
+}
