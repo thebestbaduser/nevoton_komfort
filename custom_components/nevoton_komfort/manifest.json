@@ -1,0 +1,11 @@
+{
+  "domain": "nevoton_komfort",
+  "name": "Nevoton Komfort Sauna",
+  "codeowners": ["@thebestbaduser"],
+  "config_flow": true,
+  "documentation": "https://github.com/thebestbaduser/nevoton_komfort",
+  "iot_class": "local_polling",
+  "issue_tracker": "https://github.com/thebestbaduser/nevoton_komfort/issues",
+  "requirements": [],
+  "version": "1.0.1"
+}
