@@ -29,6 +29,36 @@ class NevotonKomfortConfigFlow(ConfigFlow, domain=DOMAIN):
 
     VERSION = 1
 
+    async def _validate_and_get_device_info(
+        self, user_input: dict[str, Any], errors: dict[str, str]
+    ) -> dict[str, Any] | None:
+        """Validate user input and get device info.
+
+        Args:
+            user_input: User-provided configuration data
+            errors: Dictionary to populate with error keys
+
+        Returns:
+            Device info dict if successful, None if validation failed
+        """
+        session = async_get_clientsession(self.hass)
+        api = NevotonKomfortApi(
+            host=user_input[CONF_HOST],
+            password=user_input[CONF_PASSWORD],
+            session=session,
+        )
+
+        try:
+            return await api.async_get_device_info()
+        except NevotonAuthError:
+            errors["base"] = "invalid_auth"
+        except NevotonConnectionError:
+            errors["base"] = "cannot_connect"
+        except NevotonApiError:
+            errors["base"] = "unknown"
+
+        return None
+
     async def async_step_user(
         self, user_input: dict[str, Any] | None = None
     ) -> ConfigFlowResult:
@@ -36,22 +66,9 @@ class NevotonKomfortConfigFlow(ConfigFlow, domain=DOMAIN):
         errors: dict[str, str] = {}
 
         if user_input is not None:
-            session = async_get_clientsession(self.hass)
-            api = NevotonKomfortApi(
-                host=user_input[CONF_HOST],
-                password=user_input[CONF_PASSWORD],
-                session=session,
-            )
+            device_info = await self._validate_and_get_device_info(user_input, errors)
 
-            try:
-                device_info = await api.async_get_device_info()
-            except NevotonAuthError:
-                errors["base"] = "invalid_auth"
-            except NevotonConnectionError:
-                errors["base"] = "cannot_connect"
-            except NevotonApiError:
-                errors["base"] = "unknown"
-            else:
+            if device_info is not None:
                 # Use device ID as unique identifier
                 device_id = device_info.get("device", {}).get("id")
                 if device_id:
@@ -79,22 +96,9 @@ class NevotonKomfortConfigFlow(ConfigFlow, domain=DOMAIN):
         errors: dict[str, str] = {}
 
         if user_input is not None:
-            session = async_get_clientsession(self.hass)
-            api = NevotonKomfortApi(
-                host=user_input[CONF_HOST],
-                password=user_input[CONF_PASSWORD],
-                session=session,
-            )
+            device_info = await self._validate_and_get_device_info(user_input, errors)
 
-            try:
-                device_info = await api.async_get_device_info()
-            except NevotonAuthError:
-                errors["base"] = "invalid_auth"
-            except NevotonConnectionError:
-                errors["base"] = "cannot_connect"
-            except NevotonApiError:
-                errors["base"] = "unknown"
-            else:
+            if device_info is not None:
                 # Verify we're reconfiguring the same device
                 device_id = device_info.get("device", {}).get("id")
                 if device_id:
