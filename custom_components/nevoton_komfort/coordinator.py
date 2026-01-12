@@ -66,26 +66,26 @@ class NevotonKomfortCoordinator(DataUpdateCoordinator[dict[str, Any]]):
 
     def get_switch_state(self, key: str) -> bool:
         """Get switch state from data."""
-        if self.data:
-            return self.data.get(key, 0) == 1
+        if self.data and "switchers" in self.data:
+            return self.data["switchers"].get(key, 0) == 1
         return False
 
     def get_sensor_value(self, key: str) -> float | int | None:
         """Get sensor value from data."""
-        if self.data:
-            return self.data.get(key)
+        if self.data and "sensors" in self.data:
+            return self.data["sensors"].get(key)
         return None
 
     def get_timer_value(self, key: str) -> int | None:
         """Get timer value from data."""
-        if self.data:
-            return self.data.get(key)
+        if self.data and "timers" in self.data:
+            return self.data["timers"].get(key)
         return None
 
     def get_dimmer_value(self, key: str) -> int | None:
         """Get dimmer value from data."""
-        if self.data:
-            return self.data.get(key)
+        if self.data and "dimmers" in self.data:
+            return self.data["dimmers"].get(key)
         return None
 
     def get_status(self) -> int:
