@@ -99,7 +99,7 @@ class NevotonKomfortApi:
                 sock.close()
         
         try:
-            loop = asyncio.get_running_loop()
+            loop = asyncio.get_event_loop()
             response_text = await loop.run_in_executor(None, sync_request)
         except socket.timeout as err:
             raise NevotonConnectionError("Connection timeout") from err
