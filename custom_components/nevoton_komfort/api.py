@@ -8,6 +8,7 @@ import json
 import logging
 import socket
 from typing import Any
+from urllib.parse import urlencode
 
 from .const import (
     API_DEVICE_DESCRIPTION,
@@ -61,11 +62,9 @@ class NevotonKomfortApi:
 
     def _build_url(self, endpoint: str, params: dict[str, Any] | None = None) -> str:
         """Build URL path with query parameters."""
-        if params is None:
-            params = {}
-        params[PARAM_HASH] = self._password_hash
-        
-        query = "&".join(f"{k}={v}" for k, v in params.items())
+        query_params: dict[str, Any] = dict(params or {})
+        query_params[PARAM_HASH] = self._password_hash
+        query = urlencode(query_params)
         return f"{endpoint}?{query}"
 
     async def _raw_request(self, endpoint: str, params: dict[str, Any] | None = None) -> dict[str, Any]:
@@ -99,7 +98,7 @@ class NevotonKomfortApi:
                 sock.close()
         
         try:
-            loop = asyncio.get_event_loop()
+            loop = asyncio.get_running_loop()
             response_text = await loop.run_in_executor(None, sync_request)
         except socket.timeout as err:
             raise NevotonConnectionError("Connection timeout") from err
@@ -182,10 +181,16 @@ class NevotonKomfortApi:
             },
         )
         
-        # Check if the value was set successfully
-        if "outputs" in data:
-            return data["outputs"].get("error_ch", 1) == 0
-        return False
+        # Device may return transport-level success but channel-level failure.
+        if "outputs" not in data:
+            raise NevotonApiError("Invalid set response: missing 'outputs'")
+
+        error_ch = data["outputs"].get("error_ch", 1)
+        if error_ch != 0:
+            raise NevotonApiError(
+                f"Failed to set parameter '{parameter}', error_ch={error_ch}"
+            )
+        return True
 
     async def async_close(self) -> None:
         """Close the client (no-op for socket-based client)."""

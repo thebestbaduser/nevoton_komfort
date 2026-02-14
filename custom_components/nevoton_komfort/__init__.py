@@ -41,10 +41,7 @@ async def async_setup_entry(
 
     coordinator = NevotonKomfortCoordinator(hass, entry, api)
 
-    # Fetch device info first
-    await coordinator._async_setup()
-
-    # Fetch initial data
+    # Fetch initial data and run coordinator setup hook.
     await coordinator.async_config_entry_first_refresh()
 
     # Store coordinator in entry runtime data
