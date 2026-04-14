@@ -6,6 +6,7 @@ import asyncio
 from datetime import timedelta
 import logging
 import re
+from time import monotonic
 from typing import Any
 
 from homeassistant.config_entries import ConfigEntry
@@ -18,6 +19,7 @@ from .const import DEFAULT_SCAN_INTERVAL, DOMAIN
 
 _LOGGER = logging.getLogger(__name__)
 _PARAMETER_SPLIT_RE = re.compile(r"(?<!^)(?=[A-Z])|[^0-9A-Za-z]+")
+_PENDING_WRITE_HOLD_SECONDS = 15
 
 
 def _normalize_parameter_name(name: str) -> str:
@@ -83,6 +85,7 @@ class NevotonKomfortCoordinator(DataUpdateCoordinator[dict[str, Any]]):
         self._logged_missing_parameters: set[str] = set()
         self._consecutive_update_failures = 0
         self._post_write_refresh_task: asyncio.Task[None] | None = None
+        self._pending_writes: dict[str, tuple[int, float]] = {}
 
     async def _async_setup(self) -> None:
         """Set up the coordinator - fetch device info."""
@@ -113,7 +116,7 @@ class NevotonKomfortCoordinator(DataUpdateCoordinator[dict[str, Any]]):
                 return state
 
             self._consecutive_update_failures = 0
-            return state
+            return self._merge_pending_writes(state)
         except NevotonAuthError as err:
             raise ConfigEntryAuthFailed(str(err)) from err
         except NevotonConnectionError as err:
@@ -197,9 +200,37 @@ class NevotonKomfortCoordinator(DataUpdateCoordinator[dict[str, Any]]):
         """Apply a successful write to the local coordinator cache."""
         resolved_key = self._resolve_parameter_name(key)
         new_data = dict(self.data or {})
-        new_data[resolved_key] = int(value)
+        int_value = int(value)
+        new_data[resolved_key] = int_value
+        self._pending_writes[resolved_key] = (
+            int_value,
+            monotonic() + _PENDING_WRITE_HOLD_SECONDS,
+        )
         self._consecutive_update_failures = 0
         self.async_set_updated_data(new_data)
+
+    def _merge_pending_writes(self, state: dict[str, Any]) -> dict[str, Any]:
+        """Keep recent successful writes visible until the controller catches up."""
+        now = monotonic()
+        merged_state = dict(state)
+        expired_keys: list[str] = []
+
+        for key, (expected_value, deadline) in self._pending_writes.items():
+            current_value = merged_state.get(key)
+            if current_value == expected_value:
+                expired_keys.append(key)
+                continue
+
+            if now < deadline:
+                merged_state[key] = expected_value
+                continue
+
+            expired_keys.append(key)
+
+        for key in expired_keys:
+            self._pending_writes.pop(key, None)
+
+        return merged_state
 
     async def async_refresh_after_write(self) -> None:
         """Schedule a refresh after a write without blocking the service call."""
