@@ -53,29 +53,6 @@ class NevotonKomfortApi:
         self._host = host
         self._password_hash = self._hash_password(password)
         self._device_info: dict[str, Any] | None = None
-        self._socket: socket.socket | None = None
-
-    @property
-    def host(self) -> str:
-        """Return the host address."""
-        return self._host
-
-    def _get_socket(self) -> socket.socket:
-        """Get or create a cached socket connection."""
-        if self._socket is None:
-            self._socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-            self._socket.settimeout(10)
-        return self._socket
-
-    def _close_socket(self) -> None:
-        """Close the cached socket if it exists."""
-        if self._socket is not None:
-            try:
-                self._socket.close()
-            except Exception:
-                pass
-            finally:
-                self._socket = None
 
     @staticmethod
     def _hash_password(password: str) -> str:
@@ -103,22 +80,16 @@ class NevotonKomfortApi:
         request = (
             f"GET {url_path} HTTP/1.0\r\n"
             f"Host: {self._host}\r\n"
-            f"Connection: close\r\n"
             f"\r\n"
         )
         
         def sync_request() -> str:
-            """Synchronous socket request with connection caching."""
-            sock = self._get_socket()
+            """Synchronous socket request with fresh connection each time."""
+            sock = None
             try:
-                # Reconnect if connection was closed
-                try:
-                    sock.connect((self._host, 80))
-                except OSError:
-                    # Connection already established or failed, reset socket
-                    self._close_socket()
-                    sock = self._get_socket()
-                    sock.connect((self._host, 80))
+                sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+                sock.settimeout(10)
+                sock.connect((self._host, 80))
                 
                 sock.sendall(request.encode())
                 
@@ -130,19 +101,19 @@ class NevotonKomfortApi:
                     response += chunk
                 
                 return response.decode('utf-8', errors='ignore')
-            except Exception:
-                # Close socket on error to force reconnect on next request
-                self._close_socket()
-                raise
+            finally:
+                if sock is not None:
+                    try:
+                        sock.close()
+                    except Exception:
+                        pass
         
         try:
             loop = asyncio.get_running_loop()
             response_text = await loop.run_in_executor(None, sync_request)
         except socket.timeout as err:
-            self._close_socket()
             raise NevotonConnectionError("Connection timeout") from err
         except socket.error as err:
-            self._close_socket()
             raise NevotonConnectionError(f"Connection error: {err}") from err
         
         # Extract JSON from response (find the JSON part after headers)
@@ -233,8 +204,13 @@ class NevotonKomfortApi:
         return True
 
     async def async_close(self) -> None:
-        """Close the client and release socket resources."""
-        self._close_socket()
+        """Close the client and release resources."""
+        pass  # No persistent connections to close anymore
+
+    @property
+    def host(self) -> str:
+        """Return the host address."""
+        return self._host
 
     @property
     def device_id(self) -> str | None:

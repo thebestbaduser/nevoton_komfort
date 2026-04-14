@@ -45,7 +45,6 @@ class NevotonKomfortConfigFlow(ConfigFlow, domain=DOMAIN):
         api = NevotonKomfortApi(
             host=user_input[CONF_HOST],
             password=user_input[CONF_PASSWORD],
-            session=session,
         )
 
         try:
