@@ -96,7 +96,7 @@ class NevotonKomfortSwitch(NevotonKomfortEntity, SwitchEntity):
 
     async def async_turn_on(self, **kwargs: Any) -> None:
         """Turn on the switch."""
-        await self.coordinator.api.async_set_parameter(
+        await self.coordinator.async_set_parameter(
             self.entity_description.api_param, 1
         )
         # Optimistic update: assume success and refresh in background
@@ -105,7 +105,7 @@ class NevotonKomfortSwitch(NevotonKomfortEntity, SwitchEntity):
 
     async def async_turn_off(self, **kwargs: Any) -> None:
         """Turn off the switch."""
-        await self.coordinator.api.async_set_parameter(
+        await self.coordinator.async_set_parameter(
             self.entity_description.api_param, 0
         )
         # Optimistic update: assume success and refresh in background

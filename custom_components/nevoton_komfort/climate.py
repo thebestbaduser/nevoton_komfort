@@ -83,16 +83,16 @@ class NevotonKomfortClimate(NevotonKomfortEntity, ClimateEntity):
         """Set HVAC mode."""
         if hvac_mode == HVACMode.HEAT:
             # Turn on main power and heater
-            await self.coordinator.api.async_set_parameter(PARAM_MAIN_POWER, 1)
+            await self.coordinator.async_set_parameter(PARAM_MAIN_POWER, 1)
             try:
-                await self.coordinator.api.async_set_parameter(PARAM_HEAT, 1)
+                await self.coordinator.async_set_parameter(PARAM_HEAT, 1)
             except Exception:
                 # Rollback: turn off main power if heater activation failed
-                await self.coordinator.api.async_set_parameter(PARAM_MAIN_POWER, 0)
+                await self.coordinator.async_set_parameter(PARAM_MAIN_POWER, 0)
                 raise
         else:
             # Turn off heater (keep main power for other functions)
-            await self.coordinator.api.async_set_parameter(PARAM_HEAT, 0)
+            await self.coordinator.async_set_parameter(PARAM_HEAT, 0)
         
         # Optimistic update: update state immediately
         self.async_write_ha_state()
@@ -101,7 +101,7 @@ class NevotonKomfortClimate(NevotonKomfortEntity, ClimateEntity):
     async def async_set_temperature(self, **kwargs: Any) -> None:
         """Set new target temperature."""
         if (temperature := kwargs.get(ATTR_TEMPERATURE)) is not None:
-            await self.coordinator.api.async_set_parameter(
+            await self.coordinator.async_set_parameter(
                 PARAM_TEMPERATURE_SET,
                 int(temperature),
             )

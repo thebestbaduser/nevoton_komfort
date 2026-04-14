@@ -113,7 +113,7 @@ class NevotonKomfortNumber(NevotonKomfortEntity, NumberEntity):
 
     async def async_set_native_value(self, value: float) -> None:
         """Set the value."""
-        await self.coordinator.api.async_set_parameter(
+        await self.coordinator.async_set_parameter(
             self.entity_description.api_param,
             int(value),
         )
