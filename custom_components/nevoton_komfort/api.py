@@ -225,32 +225,49 @@ class NevotonKomfortApi:
         response_key: str,
     ) -> dict[str, Any]:
         """Read and flatten all values from a specific channel type."""
-        try:
-            data = await self._request(
-                endpoint,
-                {
-                    PARAM_TYPE: TYPE_SPECIFIC,
-                    PARAM_NUMBER: "All",
-                },
-            )
-        except NevotonApiError as err:
-            if err.error_api == 2:
-                _LOGGER.debug(
-                    "Device does not expose %s for %s specific channels",
-                    response_key,
+        for number in ("All", 0):
+            try:
+                data = await self._request(
                     endpoint,
+                    {
+                        PARAM_TYPE: TYPE_SPECIFIC,
+                        PARAM_NUMBER: number,
+                    },
                 )
-                return {}
-            raise
+            except NevotonApiError as err:
+                if number == "All" and err.error_api in {2, 3}:
+                    _LOGGER.debug(
+                        "Specific request %s with number=All failed for %s, retrying number=0",
+                        response_key,
+                        endpoint,
+                    )
+                    continue
+                if err.error_api == 2:
+                    _LOGGER.debug(
+                        "Device does not expose %s for %s specific channels",
+                        response_key,
+                        endpoint,
+                    )
+                    return {}
+                raise
 
-        state: dict[str, Any] = {}
-        channel_data = data.get(response_key, {}).get("data", [])
-        for channel in channel_data:
-            value = channel.get("value")
-            if isinstance(value, dict):
-                state.update(value)
+            state: dict[str, Any] = {}
+            channel_data = data.get(response_key, {}).get("data", [])
+            for channel in channel_data:
+                value = channel.get("value")
+                if isinstance(value, dict):
+                    state.update(value)
 
-        return state
+            if state or number == 0:
+                return state
+
+            _LOGGER.debug(
+                "Specific request %s with number=All returned no values for %s, retrying number=0",
+                response_key,
+                endpoint,
+            )
+
+        return {}
 
     async def async_get_device_info(self) -> dict[str, Any]:
         """Get device information."""

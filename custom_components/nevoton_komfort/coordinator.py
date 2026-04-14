@@ -191,8 +191,8 @@ class NevotonKomfortCoordinator(DataUpdateCoordinator[dict[str, Any]]):
             return self.data.get(self._resolve_parameter_name(key))
         return None
 
-    def get_status(self) -> int:
+    def get_status(self) -> int | None:
         """Get device status."""
         if self.data:
-            return self.data.get(self._resolve_parameter_name("Status"), 0)
-        return 0
+            return self.data.get(self._resolve_parameter_name("Status"))
+        return None
