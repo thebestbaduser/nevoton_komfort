@@ -60,7 +60,8 @@ class NevotonKomfortLight(NevotonKomfortEntity, LightEntity):
             # When dimmer is 0, light might still be on via Light_switch
             # Dimmer 1-6 maps to brightness levels
             if dimmer == 0:
-                return 42  # Minimum visible brightness when on
+                # Minimum visible brightness when on (approximately 1/6 of max)
+                return int(255 / LIGHT_DIMMER_MAX)
             return int((dimmer / LIGHT_DIMMER_MAX) * 255)
         return None
 

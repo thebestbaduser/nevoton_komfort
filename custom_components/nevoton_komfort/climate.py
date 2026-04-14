@@ -84,7 +84,12 @@ class NevotonKomfortClimate(NevotonKomfortEntity, ClimateEntity):
         if hvac_mode == HVACMode.HEAT:
             # Turn on main power and heater
             await self.coordinator.api.async_set_parameter(PARAM_MAIN_POWER, 1)
-            await self.coordinator.api.async_set_parameter(PARAM_HEAT, 1)
+            try:
+                await self.coordinator.api.async_set_parameter(PARAM_HEAT, 1)
+            except Exception:
+                # Rollback: turn off main power if heater activation failed
+                await self.coordinator.api.async_set_parameter(PARAM_MAIN_POWER, 0)
+                raise
         else:
             # Turn off heater (keep main power for other functions)
             await self.coordinator.api.async_set_parameter(PARAM_HEAT, 0)
