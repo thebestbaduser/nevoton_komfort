@@ -1,1 +1,40 @@
-(custom_components/nevoton_komfort/api.py is a source code file, so no additional ignores are needed beyond what might already be in place for Python projects, but since only a single source file was modified and no build artifacts or dependencies are present in the changes, no new ignore rules are necessary)
+```
+# Compiled Python files
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+
+# Python virtual environments
+venv/
+.venv/
+.env
+.env.local
+*.env.*
+
+# Logs
+*.log
+
+# Temporary files
+*.tmp
+*.swp
+*.swo
+
+# OS generated files
+.DS_Store
+Thumbs.db
+
+# Coverage reports
+.coverage
+coverage/
+htmlcov/
+
+# IDE specific
+.vscode/
+.idea/
+
+# Build artifacts
+dist/
+build/
+target/
+```
