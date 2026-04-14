@@ -20,6 +20,7 @@ from .const import DEFAULT_SCAN_INTERVAL, DOMAIN
 _LOGGER = logging.getLogger(__name__)
 _PARAMETER_SPLIT_RE = re.compile(r"(?<!^)(?=[A-Z])|[^0-9A-Za-z]+")
 _PENDING_WRITE_HOLD_SECONDS = 15
+_TRANSIENT_FAILURE_TOLERANCE = 6
 
 
 def _normalize_parameter_name(name: str) -> str:
@@ -106,11 +107,15 @@ class NevotonKomfortCoordinator(DataUpdateCoordinator[dict[str, Any]]):
                     "Device returned no specific parameters. "
                     "Check /help/specific on the controller to confirm the parameter names."
                 )
-                if self.data and self._consecutive_update_failures <= 2:
+                if (
+                    self.data
+                    and self._consecutive_update_failures <= _TRANSIENT_FAILURE_TOLERANCE
+                ):
                     _LOGGER.warning(
                         "Keeping the last known device state after an empty response "
-                        "(transient failure %s/2).",
+                        "(transient failure %s/%s).",
                         self._consecutive_update_failures,
+                        _TRANSIENT_FAILURE_TOLERANCE,
                     )
                     return self.data
                 return state
@@ -121,22 +126,30 @@ class NevotonKomfortCoordinator(DataUpdateCoordinator[dict[str, Any]]):
             raise ConfigEntryAuthFailed(str(err)) from err
         except NevotonConnectionError as err:
             self._consecutive_update_failures += 1
-            if self.data and self._consecutive_update_failures <= 2:
+            if (
+                self.data
+                and self._consecutive_update_failures <= _TRANSIENT_FAILURE_TOLERANCE
+            ):
                 _LOGGER.warning(
                     "Temporary connection error while refreshing state, keeping the "
-                    "last known values (%s/2): %s",
+                    "last known values (%s/%s): %s",
                     self._consecutive_update_failures,
+                    _TRANSIENT_FAILURE_TOLERANCE,
                     err,
                 )
                 return self.data
             raise UpdateFailed(f"Connection error: {err}") from err
         except NevotonApiError as err:
             self._consecutive_update_failures += 1
-            if self.data and self._consecutive_update_failures <= 2:
+            if (
+                self.data
+                and self._consecutive_update_failures <= _TRANSIENT_FAILURE_TOLERANCE
+            ):
                 _LOGGER.warning(
                     "Temporary API error while refreshing state, keeping the last "
-                    "known values (%s/2): %s",
+                    "known values (%s/%s): %s",
                     self._consecutive_update_failures,
+                    _TRANSIENT_FAILURE_TOLERANCE,
                     err,
                 )
                 return self.data

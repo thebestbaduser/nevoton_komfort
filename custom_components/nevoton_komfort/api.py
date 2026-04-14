@@ -24,6 +24,9 @@ from .const import (
 )
 
 _LOGGER = logging.getLogger(__name__)
+_CONNECT_TIMEOUT = 5
+_READ_TIMEOUT = 10
+_WRITE_RESPONSE_TIMEOUT = 2
 
 
 class NevotonApiError(Exception):
@@ -130,7 +133,7 @@ class NevotonKomfortApi:
             response = b""
             try:
                 sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-                sock.settimeout(5)
+                sock.settimeout(_CONNECT_TIMEOUT)
                 sock.connect((self._host, self._port))
 
                 sock.sendall(request.encode())
@@ -138,7 +141,9 @@ class NevotonKomfortApi:
                 # Documented API returns JSON for writes, but some firmware builds
                 # complete the command without sending a response body.
                 if is_write:
-                    sock.settimeout(1)
+                    sock.settimeout(_WRITE_RESPONSE_TIMEOUT)
+                else:
+                    sock.settimeout(_READ_TIMEOUT)
 
                 while True:
                     try:
