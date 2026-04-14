@@ -51,7 +51,10 @@ class NevotonKomfortCoordinator(DataUpdateCoordinator[dict[str, Any]]):
     async def _async_update_data(self) -> dict[str, Any]:
         """Fetch data from API."""
         try:
-            return await self.api.async_get_state()
+            state = await self.api.async_get_state()
+            # API returns flat structure with all parameters directly
+            # No need to wrap in sub-dictionaries
+            return state
         except NevotonAuthError as err:
             raise ConfigEntryAuthFailed(str(err)) from err
         except NevotonConnectionError as err:
@@ -66,26 +69,27 @@ class NevotonKomfortCoordinator(DataUpdateCoordinator[dict[str, Any]]):
 
     def get_switch_state(self, key: str) -> bool:
         """Get switch state from data."""
-        if self.data and "switchers" in self.data:
-            return self.data["switchers"].get(key, 0) == 1
+        if self.data:
+            value = self.data.get(key, 0)
+            return value == 1
         return False
 
     def get_sensor_value(self, key: str) -> float | int | None:
         """Get sensor value from data."""
-        if self.data and "sensors" in self.data:
-            return self.data["sensors"].get(key)
+        if self.data:
+            return self.data.get(key)
         return None
 
     def get_timer_value(self, key: str) -> int | None:
         """Get timer value from data."""
-        if self.data and "timers" in self.data:
-            return self.data["timers"].get(key)
+        if self.data:
+            return self.data.get(key)
         return None
 
     def get_dimmer_value(self, key: str) -> int | None:
         """Get dimmer value from data."""
-        if self.data and "dimmers" in self.data:
-            return self.data["dimmers"].get(key)
+        if self.data:
+            return self.data.get(key)
         return None
 
     def get_status(self) -> int:

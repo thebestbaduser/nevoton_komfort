@@ -117,4 +117,6 @@ class NevotonKomfortNumber(NevotonKomfortEntity, NumberEntity):
             self.entity_description.api_param,
             int(value),
         )
+        # Optimistic update: update state immediately
+        self.async_write_ha_state()
         await self.coordinator.async_request_refresh()
