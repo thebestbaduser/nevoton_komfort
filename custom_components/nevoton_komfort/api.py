@@ -8,7 +8,7 @@ import json
 import logging
 import socket
 from typing import Any
-from urllib.parse import urlencode
+from urllib.parse import urlencode, urlsplit
 
 from .const import (
     API_DEVICE_DESCRIPTION,
@@ -63,9 +63,31 @@ class NevotonKomfortApi:
         password: str,
     ) -> None:
         """Initialize API client."""
-        self._host = host
+        parsed = self._parse_host(host)
+        self._host = parsed["host"]
+        self._port = parsed["port"]
+        self._host_header = parsed["host_header"]
+        self._base_url = parsed["base_url"]
         self._password_hash = self._hash_password(password)
         self._device_info: dict[str, Any] | None = None
+
+    @staticmethod
+    def _parse_host(host: str) -> dict[str, Any]:
+        """Parse a configured host value into socket connection parts."""
+        normalized_host = host.strip().rstrip("/")
+        split = urlsplit(
+            normalized_host if "://" in normalized_host else f"http://{normalized_host}"
+        )
+        hostname = split.hostname or normalized_host
+        port = split.port or 80
+        host_header = hostname if port == 80 else f"{hostname}:{port}"
+        base_url = f"http://{host_header}"
+        return {
+            "host": hostname,
+            "port": port,
+            "host_header": host_header,
+            "base_url": base_url,
+        }
 
     @staticmethod
     def _hash_password(password: str) -> str:
@@ -97,7 +119,7 @@ class NevotonKomfortApi:
 
         request = (
             f"GET {url_path} HTTP/1.0\r\n"
-            f"Host: {self._host}\r\n"
+            f"Host: {self._host_header}\r\n"
             f"Connection: close\r\n"
             f"\r\n"
         )
@@ -109,7 +131,7 @@ class NevotonKomfortApi:
             try:
                 sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
                 sock.settimeout(5)
-                sock.connect((self._host, 80))
+                sock.connect((self._host, self._port))
 
                 sock.sendall(request.encode())
 
@@ -256,7 +278,7 @@ class NevotonKomfortApi:
             for channel in channel_data:
                 value = channel.get("value")
                 if isinstance(value, dict):
-                    state.update(value)
+                    state.update(self._flatten_specific_value(value))
 
             if state or number == 0:
                 return state
@@ -268,6 +290,16 @@ class NevotonKomfortApi:
             )
 
         return {}
+
+    def _flatten_specific_value(self, value: dict[str, Any]) -> dict[str, Any]:
+        """Flatten nested specific-channel payloads into a single key/value map."""
+        flattened: dict[str, Any] = {}
+        for key, item in value.items():
+            if isinstance(item, dict):
+                flattened.update(self._flatten_specific_value(item))
+            else:
+                flattened[key] = item
+        return flattened
 
     async def async_get_device_info(self) -> dict[str, Any]:
         """Get device information."""
@@ -321,6 +353,11 @@ class NevotonKomfortApi:
     def host(self) -> str:
         """Return the host address."""
         return self._host
+
+    @property
+    def base_url(self) -> str:
+        """Return the configured device base URL."""
+        return self._base_url
 
     @property
     def device_id(self) -> str | None:
