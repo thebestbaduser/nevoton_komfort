@@ -39,5 +39,5 @@ class NevotonKomfortEntity(CoordinatorEntity[NevotonKomfortCoordinator]):
             manufacturer="NEVOTON",
             model=device_data.get("moduleName", "KOMFORT-WF"),
             sw_version=device_data.get("firmwareVersion"),
-            configuration_url=f"http://{device.get('ip', self.coordinator.api._host)}/human",
+            configuration_url=f"http://{device.get('ip', self.coordinator.api.host)}/human",
         )
