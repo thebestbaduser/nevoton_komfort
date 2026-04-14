@@ -308,10 +308,15 @@ class NevotonKomfortApi:
         return data
 
     async def async_get_state(self) -> dict[str, Any]:
-        """Get current state from specific inputs and outputs."""
+        """Get current state from the controller specific channel."""
         state = await self._async_get_specific_values(API_GET_INPUTS, "inputs")
-        state.update(await self._async_get_specific_values(API_GET_OUTPUTS, "outputs"))
-        return state
+        if state:
+            return state
+
+        _LOGGER.debug(
+            "Specific inputs returned no values, falling back to specific outputs"
+        )
+        return await self._async_get_specific_values(API_GET_OUTPUTS, "outputs")
 
     async def async_set_parameter(
         self,
@@ -319,16 +324,28 @@ class NevotonKomfortApi:
         value: int | float,
     ) -> bool:
         """Set a specific parameter."""
-        data = await self._request(
-            API_SET_OUTPUTS,
-            {
-                PARAM_TYPE: TYPE_SPECIFIC,
-                PARAM_NUMBER: 0,
-                PARAM_SP_NAME: parameter,
-                PARAM_VALUE: int(value),
-            },
-            is_write=True,
-        )
+        request_params = {
+            PARAM_TYPE: TYPE_SPECIFIC,
+            PARAM_NUMBER: 0,
+            PARAM_SP_NAME: parameter,
+            PARAM_VALUE: int(value),
+        }
+        for attempt in range(2):
+            try:
+                data = await self._request(
+                    API_SET_OUTPUTS,
+                    request_params,
+                    is_write=True,
+                )
+                break
+            except NevotonConnectionError:
+                if attempt == 1:
+                    raise
+                _LOGGER.warning(
+                    "Timed out while writing %s, retrying once",
+                    parameter,
+                )
+                await asyncio.sleep(0.5)
 
         # Device may return transport-level success but channel-level failure.
         # Some firmware versions return empty or minimal response on success.

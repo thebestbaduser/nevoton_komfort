@@ -82,6 +82,7 @@ class NevotonKomfortCoordinator(DataUpdateCoordinator[dict[str, Any]]):
         self._logged_resolutions: set[tuple[str, str]] = set()
         self._logged_missing_parameters: set[str] = set()
         self._consecutive_update_failures = 0
+        self._post_write_refresh_task: asyncio.Task[None] | None = None
 
     async def _async_setup(self) -> None:
         """Set up the coordinator - fetch device info."""
@@ -197,12 +198,27 @@ class NevotonKomfortCoordinator(DataUpdateCoordinator[dict[str, Any]]):
         resolved_key = self._resolve_parameter_name(key)
         new_data = dict(self.data or {})
         new_data[resolved_key] = int(value)
+        self._consecutive_update_failures = 0
         self.async_set_updated_data(new_data)
 
     async def async_refresh_after_write(self) -> None:
-        """Refresh state after a write without briefly dropping availability."""
-        await asyncio.sleep(1)
-        await self.async_request_refresh()
+        """Schedule a refresh after a write without blocking the service call."""
+        if self._post_write_refresh_task and not self._post_write_refresh_task.done():
+            self._post_write_refresh_task.cancel()
+
+        self._post_write_refresh_task = self.hass.async_create_task(
+            self._async_delayed_refresh_after_write()
+        )
+
+    async def _async_delayed_refresh_after_write(self) -> None:
+        """Run a delayed refresh after a write command."""
+        try:
+            await asyncio.sleep(1)
+            await self.async_request_refresh()
+        except asyncio.CancelledError:
+            raise
+        except Exception as err:
+            _LOGGER.warning("Post-write refresh failed: %s", err)
 
     @property
     def device_info(self) -> dict[str, Any] | None:
