@@ -80,6 +80,7 @@ class NevotonKomfortApi:
         request = (
             f"GET {url_path} HTTP/1.0\r\n"
             f"Host: {self._host}\r\n"
+            f"Connection: close\r\n"
             f"\r\n"
         )
         
@@ -88,7 +89,7 @@ class NevotonKomfortApi:
             sock = None
             try:
                 sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-                sock.settimeout(10)
+                sock.settimeout(5)  # Reduced timeout to fail faster
                 sock.connect((self._host, 80))
                 
                 sock.sendall(request.encode())
@@ -99,8 +100,15 @@ class NevotonKomfortApi:
                     if not chunk:
                         break
                     response += chunk
+                    # Early exit if we have complete JSON response
+                    if b'}' in response and response.strip().endswith(b'}'):
+                        break
                 
                 return response.decode('utf-8', errors='ignore')
+            except socket.timeout:
+                raise
+            except Exception:
+                raise
             finally:
                 if sock is not None:
                     try:
