@@ -175,7 +175,26 @@ class NevotonKomfortApi:
         is_write: bool = False,
     ) -> dict[str, Any]:
         """Make API request."""
-        return await self._raw_request(endpoint, params, is_write)
+        result = await self._raw_request(endpoint, params)
+        
+        # Для команд записи (set) ответ может быть пустым или не содержать стандартной структуры
+        if is_write:
+            if not result:
+                _LOGGER.debug("Empty response for write operation (considered success)")
+                return {"success": True}
+            # Если есть ответ, проверяем на явные ошибки, но не требуем строгого наличия ключей
+            if "error_api" in result:
+                raise NevotonApiError(f"API Error code: {result['error_api']}")
+            if "error_device" in result and result["error_device"] != 0:
+                raise NevotonApiError(f"Device Error code: {result['error_device']}")
+            # Возвращаем как есть, даже если структура отличается от GET запросов
+            return result
+
+        # Для чтений (get) ожидаем стандартную структуру
+        if not result:
+            raise NevotonConnectionError("Empty response from device")
+        
+        return result
 
     async def async_get_device_info(self) -> dict[str, Any]:
         """Get device information."""
