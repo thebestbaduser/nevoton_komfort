@@ -53,4 +53,9 @@ async def async_unload_entry(
     entry: NevotonKomfortConfigEntry,
 ) -> bool:
     """Unload a config entry."""
-    return await hass.config_entries.async_unload_platforms(entry, PLATFORMS)
+    if unload_ok := await hass.config_entries.async_unload_platforms(entry, PLATFORMS):
+        # Close API connections if needed
+        coordinator = entry.runtime_data
+        await coordinator.api.async_close()
+        return unload_ok
+    return False

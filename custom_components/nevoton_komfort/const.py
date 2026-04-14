@@ -56,4 +56,4 @@ HUMIDITY_MAX = 95
 LIGHT_DIMMER_MAX = 6
 
 # Update interval
-DEFAULT_SCAN_INTERVAL = 10  # seconds
+DEFAULT_SCAN_INTERVAL = 30  # seconds - increased to reduce load on device
