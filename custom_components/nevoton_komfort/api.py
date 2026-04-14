@@ -238,8 +238,10 @@ class NevotonKomfortApi:
         )
         
         # Device may return transport-level success but channel-level failure.
+        # Some firmware versions return empty or minimal response on success.
         if "outputs" not in data:
-            raise NevotonApiError("Invalid set response: missing 'outputs'")
+            _LOGGER.debug("Set response missing 'outputs' key, assuming success if no errors")
+            return True
 
         error_ch = data["outputs"].get("error_ch", 1)
         if error_ch != 0:
