@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import asyncio
 from datetime import timedelta
 import logging
 import re
@@ -80,6 +81,7 @@ class NevotonKomfortCoordinator(DataUpdateCoordinator[dict[str, Any]]):
         self._parameter_aliases: dict[str, str] = {}
         self._logged_resolutions: set[tuple[str, str]] = set()
         self._logged_missing_parameters: set[str] = set()
+        self._consecutive_update_failures = 0
 
     async def _async_setup(self) -> None:
         """Set up the coordinator - fetch device info."""
@@ -95,16 +97,45 @@ class NevotonKomfortCoordinator(DataUpdateCoordinator[dict[str, Any]]):
         try:
             state = await self.api.async_get_state()
             if not state:
+                self._consecutive_update_failures += 1
                 _LOGGER.warning(
                     "Device returned no specific parameters. "
                     "Check /help/specific on the controller to confirm the parameter names."
                 )
+                if self.data and self._consecutive_update_failures <= 2:
+                    _LOGGER.warning(
+                        "Keeping the last known device state after an empty response "
+                        "(transient failure %s/2).",
+                        self._consecutive_update_failures,
+                    )
+                    return self.data
+                return state
+
+            self._consecutive_update_failures = 0
             return state
         except NevotonAuthError as err:
             raise ConfigEntryAuthFailed(str(err)) from err
         except NevotonConnectionError as err:
+            self._consecutive_update_failures += 1
+            if self.data and self._consecutive_update_failures <= 2:
+                _LOGGER.warning(
+                    "Temporary connection error while refreshing state, keeping the "
+                    "last known values (%s/2): %s",
+                    self._consecutive_update_failures,
+                    err,
+                )
+                return self.data
             raise UpdateFailed(f"Connection error: {err}") from err
         except NevotonApiError as err:
+            self._consecutive_update_failures += 1
+            if self.data and self._consecutive_update_failures <= 2:
+                _LOGGER.warning(
+                    "Temporary API error while refreshing state, keeping the last "
+                    "known values (%s/2): %s",
+                    self._consecutive_update_failures,
+                    err,
+                )
+                return self.data
             raise UpdateFailed(f"Error communicating with API: {err}") from err
 
     def _resolve_parameter_name(self, key: str) -> str:
@@ -160,6 +191,18 @@ class NevotonKomfortCoordinator(DataUpdateCoordinator[dict[str, Any]]):
             self._resolve_parameter_name(key),
             value,
         )
+
+    def apply_local_update(self, key: str, value: int | float) -> None:
+        """Apply a successful write to the local coordinator cache."""
+        resolved_key = self._resolve_parameter_name(key)
+        new_data = dict(self.data or {})
+        new_data[resolved_key] = int(value)
+        self.async_set_updated_data(new_data)
+
+    async def async_refresh_after_write(self) -> None:
+        """Refresh state after a write without briefly dropping availability."""
+        await asyncio.sleep(1)
+        await self.async_request_refresh()
 
     @property
     def device_info(self) -> dict[str, Any] | None:

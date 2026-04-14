@@ -84,19 +84,21 @@ class NevotonKomfortClimate(NevotonKomfortEntity, ClimateEntity):
         if hvac_mode == HVACMode.HEAT:
             # Turn on main power and heater
             await self.coordinator.async_set_parameter(PARAM_MAIN_POWER, 1)
+            self.coordinator.apply_local_update(PARAM_MAIN_POWER, 1)
             try:
                 await self.coordinator.async_set_parameter(PARAM_HEAT, 1)
+                self.coordinator.apply_local_update(PARAM_HEAT, 1)
             except Exception:
                 # Rollback: turn off main power if heater activation failed
                 await self.coordinator.async_set_parameter(PARAM_MAIN_POWER, 0)
+                self.coordinator.apply_local_update(PARAM_MAIN_POWER, 0)
                 raise
         else:
             # Turn off heater (keep main power for other functions)
             await self.coordinator.async_set_parameter(PARAM_HEAT, 0)
-        
-        # Optimistic update: update state immediately
-        self.async_write_ha_state()
-        await self.coordinator.async_request_refresh()
+            self.coordinator.apply_local_update(PARAM_HEAT, 0)
+
+        await self.coordinator.async_refresh_after_write()
 
     async def async_set_temperature(self, **kwargs: Any) -> None:
         """Set new target temperature."""
@@ -105,9 +107,11 @@ class NevotonKomfortClimate(NevotonKomfortEntity, ClimateEntity):
                 PARAM_TEMPERATURE_SET,
                 int(temperature),
             )
-            # Optimistic update: update state immediately
-            self.async_write_ha_state()
-            await self.coordinator.async_request_refresh()
+            self.coordinator.apply_local_update(
+                PARAM_TEMPERATURE_SET,
+                int(temperature),
+            )
+            await self.coordinator.async_refresh_after_write()
 
     async def async_turn_on(self) -> None:
         """Turn on the sauna."""

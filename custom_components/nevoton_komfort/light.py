@@ -69,6 +69,7 @@ class NevotonKomfortLight(NevotonKomfortEntity, LightEntity):
         """Turn on the light."""
         # First, turn on the light switch
         await self.coordinator.async_set_parameter(PARAM_LIGHT, 1)
+        self.coordinator.apply_local_update(PARAM_LIGHT, 1)
         
         # Then set brightness if provided
         if ATTR_BRIGHTNESS in kwargs:
@@ -76,14 +77,12 @@ class NevotonKomfortLight(NevotonKomfortEntity, LightEntity):
             # Convert 0-255 to 1-6 (0 means off on the device)
             dimmer_value = max(1, min(LIGHT_DIMMER_MAX, round(brightness / 255 * LIGHT_DIMMER_MAX)))
             await self.coordinator.async_set_parameter(PARAM_LIGHT_DIMMER, dimmer_value)
-        
-        # Optimistic update: update state immediately
-        self.async_write_ha_state()
-        await self.coordinator.async_request_refresh()
+            self.coordinator.apply_local_update(PARAM_LIGHT_DIMMER, dimmer_value)
+
+        await self.coordinator.async_refresh_after_write()
 
     async def async_turn_off(self, **kwargs: Any) -> None:
         """Turn off the light."""
         await self.coordinator.async_set_parameter(PARAM_LIGHT, 0)
-        # Optimistic update: update state immediately
-        self.async_write_ha_state()
-        await self.coordinator.async_request_refresh()
+        self.coordinator.apply_local_update(PARAM_LIGHT, 0)
+        await self.coordinator.async_refresh_after_write()
