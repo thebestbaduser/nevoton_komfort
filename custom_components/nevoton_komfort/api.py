@@ -73,7 +73,12 @@ class NevotonKomfortApi:
         query = urlencode(query_params)
         return f"{endpoint}?{query}"
 
-    async def _raw_request(self, endpoint: str, params: dict[str, Any] | None = None) -> dict[str, Any]:
+    async def _raw_request(
+        self, 
+        endpoint: str, 
+        params: dict[str, Any] | None = None,
+        is_write: bool = False
+    ) -> dict[str, Any]:
         """Make raw HTTP request using sockets to handle buggy headers."""
         url_path = self._build_url(endpoint, params)
         
@@ -93,6 +98,12 @@ class NevotonKomfortApi:
                 sock.connect((self._host, 80))
                 
                 sock.sendall(request.encode())
+                
+                # For write operations, controller may not send response body
+                # Just wait a bit for command to be processed and return empty
+                if is_write:
+                    time.sleep(0.2)
+                    return ""
                 
                 response = b""
                 while True:
@@ -123,6 +134,10 @@ class NevotonKomfortApi:
             raise NevotonConnectionError("Connection timeout") from err
         except socket.error as err:
             raise NevotonConnectionError(f"Connection error: {err}") from err
+        
+        # For write operations, empty response is OK
+        if not response_text:
+            return {}
         
         # Extract JSON from response (find the JSON part after headers)
         json_start = response_text.find('{')
@@ -198,6 +213,7 @@ class NevotonKomfortApi:
                 PARAM_SP_NAME: parameter,
                 PARAM_VALUE: int(value),
             },
+            is_write=True,
         )
         
         # Device may return transport-level success but channel-level failure.
