@@ -1,5 +1,10 @@
 # Changelog
 
+## 1.0.11
+
+- Добавлены локальные brand assets для HACS и Home Assistant.
+- В интеграцию включены `icon.png`, `icon@2x.png`, `logo.png` и `logo@2x.png`.
+
 ## 1.0.10
 
 - Повышена устойчивость к медленным ответам контроллера.
