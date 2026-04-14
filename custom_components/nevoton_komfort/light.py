@@ -77,9 +77,13 @@ class NevotonKomfortLight(NevotonKomfortEntity, LightEntity):
             dimmer_value = max(1, min(LIGHT_DIMMER_MAX, round(brightness / 255 * LIGHT_DIMMER_MAX)))
             await self.coordinator.api.async_set_parameter(PARAM_LIGHT_DIMMER, dimmer_value)
         
+        # Optimistic update: update state immediately
+        self.async_write_ha_state()
         await self.coordinator.async_request_refresh()
 
     async def async_turn_off(self, **kwargs: Any) -> None:
         """Turn off the light."""
         await self.coordinator.api.async_set_parameter(PARAM_LIGHT, 0)
+        # Optimistic update: update state immediately
+        self.async_write_ha_state()
         await self.coordinator.async_request_refresh()

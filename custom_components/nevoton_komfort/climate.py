@@ -94,6 +94,8 @@ class NevotonKomfortClimate(NevotonKomfortEntity, ClimateEntity):
             # Turn off heater (keep main power for other functions)
             await self.coordinator.api.async_set_parameter(PARAM_HEAT, 0)
         
+        # Optimistic update: update state immediately
+        self.async_write_ha_state()
         await self.coordinator.async_request_refresh()
 
     async def async_set_temperature(self, **kwargs: Any) -> None:
@@ -103,6 +105,8 @@ class NevotonKomfortClimate(NevotonKomfortEntity, ClimateEntity):
                 PARAM_TEMPERATURE_SET,
                 int(temperature),
             )
+            # Optimistic update: update state immediately
+            self.async_write_ha_state()
             await self.coordinator.async_request_refresh()
 
     async def async_turn_on(self) -> None:
