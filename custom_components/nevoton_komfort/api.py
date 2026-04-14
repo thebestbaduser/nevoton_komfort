@@ -171,9 +171,10 @@ class NevotonKomfortApi:
         self,
         endpoint: str,
         params: dict[str, Any] | None = None,
+        is_write: bool = False,
     ) -> dict[str, Any]:
         """Make API request."""
-        return await self._raw_request(endpoint, params)
+        return await self._raw_request(endpoint, params, is_write)
 
     async def async_get_device_info(self) -> dict[str, Any]:
         """Get device information."""

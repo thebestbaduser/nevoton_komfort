@@ -5,32 +5,29 @@ __pycache__/
 *.pyo
 *.pyd
 
-# Dependencies
-venv/
-.venv/
+# Logs and temp files
+*.log
+*.tmp
+*.swp
+
+# Environment
 .env
 .env.local
 *.env.*
 
-# Logs
-*.log
+# Dependencies
+.venv/
+venv/
+node_modules/
 
-# Editor/IDE
-.vscode/
-.idea/
-*.swp
-*.swo
-*.tmp
-
-# Build/dist
+# Build artifacts
 dist/
 build/
 target/
 
-# Coverage
-.coverage
-coverage/
-htmlcov/
+# Editors
+.vscode/
+.idea/
 
 # OS
 .DS_Store
