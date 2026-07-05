@@ -9,6 +9,16 @@
 - сенсоры температуры, влажности, статуса и таймеров
 - числовые параметры таймеров и целевой влажности
 
+## Скриншоты
+
+Терморегулятор с историей нагрева и журналом активности:
+
+![Терморегулятор Nevoton Komfort в Home Assistant](docs/screenshots/climate-thermostat.png)
+
+Сенсор текущей температуры с графиком истории:
+
+![Текущая температура Nevoton Komfort в Home Assistant](docs/screenshots/temperature-sensor.png)
+
 ## Совместимость
 
 - Home Assistant: `2024.1.0+`
