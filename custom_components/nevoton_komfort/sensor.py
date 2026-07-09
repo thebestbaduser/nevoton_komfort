@@ -2,9 +2,8 @@
 
 from __future__ import annotations
 
+from collections.abc import Callable
 from dataclasses import dataclass
-import logging
-from typing import Callable
 
 from homeassistant.components.sensor import (
     SensorDeviceClass,
@@ -30,8 +29,6 @@ from .const import (
 )
 from .coordinator import NevotonKomfortCoordinator
 from .entity import NevotonKomfortEntity
-
-_LOGGER = logging.getLogger(__name__)
 
 
 def _convert_minutes_to_time(value: int | None) -> str | None:

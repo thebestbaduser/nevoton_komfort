@@ -27,6 +27,7 @@ _LOGGER = logging.getLogger(__name__)
 _CONNECT_TIMEOUT = 5
 _READ_TIMEOUT = 10
 _WRITE_RESPONSE_TIMEOUT = 2
+_WRITE_RETRY_DELAY = 0.5
 
 
 class NevotonApiError(Exception):
@@ -78,10 +79,16 @@ class NevotonKomfortApi:
     def _parse_host(host: str) -> dict[str, Any]:
         """Parse a configured host value into socket connection parts."""
         normalized_host = host.strip().rstrip("/")
+        if not normalized_host:
+            raise NevotonConnectionError("Host is empty")
+
         split = urlsplit(
             normalized_host if "://" in normalized_host else f"http://{normalized_host}"
         )
-        hostname = split.hostname or normalized_host
+        hostname = split.hostname
+        if not hostname:
+            raise NevotonConnectionError(f"Invalid host: {host}")
+
         port = split.port or 80
         host_header = hostname if port == 80 else f"{hostname}:{port}"
         base_url = f"http://{host_header}"
@@ -102,7 +109,10 @@ class NevotonKomfortApi:
         2. The device firmware requires this specific algorithm
         3. Communication is typically on a local network
         """
-        return hashlib.sha1(password.encode()).hexdigest()
+        return hashlib.sha1(
+            password.encode("utf-8"),
+            usedforsecurity=False,
+        ).hexdigest()
 
     def _build_url(self, endpoint: str, params: dict[str, Any] | None = None) -> str:
         """Build URL path with query parameters."""
@@ -129,14 +139,11 @@ class NevotonKomfortApi:
 
         def sync_request() -> str:
             """Synchronous socket request with fresh connection each time."""
-            sock = None
             response = b""
-            try:
-                sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+            with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as sock:
                 sock.settimeout(_CONNECT_TIMEOUT)
                 sock.connect((self._host, self._port))
-
-                sock.sendall(request.encode())
+                sock.sendall(request.encode("ascii", errors="strict"))
 
                 # Documented API returns JSON for writes, but some firmware builds
                 # complete the command without sending a response body.
@@ -160,24 +167,14 @@ class NevotonKomfortApi:
                     if b"}" in response and response.strip().endswith(b"}"):
                         break
 
-                return response.decode("utf-8", errors="ignore")
-            except socket.timeout:
-                raise
-            except Exception:
-                raise
-            finally:
-                if sock is not None:
-                    try:
-                        sock.close()
-                    except Exception:
-                        pass
+            return response.decode("utf-8", errors="replace")
 
         try:
             loop = asyncio.get_running_loop()
             response_text = await loop.run_in_executor(None, sync_request)
         except socket.timeout as err:
             raise NevotonConnectionError("Connection timeout") from err
-        except socket.error as err:
+        except OSError as err:
             raise NevotonConnectionError(f"Connection error: {err}") from err
 
         if not response_text:
@@ -202,6 +199,9 @@ class NevotonKomfortApi:
             data = json.loads(json_text)
         except json.JSONDecodeError as err:
             raise NevotonApiError(f"Invalid JSON: {err}") from err
+
+        if not isinstance(data, dict):
+            raise NevotonApiError(f"Unexpected JSON payload type: {type(data).__name__}")
 
         if "error_api" in data:
             error_code = data["error_api"]
@@ -234,10 +234,17 @@ class NevotonKomfortApi:
                 _LOGGER.debug("Empty response for write operation (considered success)")
                 return {"success": True}
 
+            # Errors are already raised in _raw_request; keep a defensive check.
             if "error_api" in result:
-                raise NevotonApiError(f"API Error code: {result['error_api']}")
+                raise NevotonApiError(
+                    f"API Error code: {result['error_api']}",
+                    error_api=result["error_api"],
+                )
             if "error_device" in result and result["error_device"] != 0:
-                raise NevotonApiError(f"Device Error code: {result['error_device']}")
+                raise NevotonApiError(
+                    f"Device Error code: {result['error_device']}",
+                    error_device=result["error_device"],
+                )
 
             return result
 
@@ -280,7 +287,18 @@ class NevotonKomfortApi:
 
             state: dict[str, Any] = {}
             channel_data = data.get(response_key, {}).get("data", [])
+            if not isinstance(channel_data, list):
+                _LOGGER.debug(
+                    "Unexpected %s.data payload type for %s: %s",
+                    response_key,
+                    endpoint,
+                    type(channel_data).__name__,
+                )
+                channel_data = []
+
             for channel in channel_data:
+                if not isinstance(channel, dict):
+                    continue
                 value = channel.get("value")
                 if isinstance(value, dict):
                     state.update(self._flatten_specific_value(value))
@@ -335,6 +353,7 @@ class NevotonKomfortApi:
             PARAM_SP_NAME: parameter,
             PARAM_VALUE: int(value),
         }
+        data: dict[str, Any] = {}
         for attempt in range(2):
             try:
                 data = await self._request(
@@ -350,7 +369,7 @@ class NevotonKomfortApi:
                     "Timed out while writing %s, retrying once",
                     parameter,
                 )
-                await asyncio.sleep(0.5)
+                await asyncio.sleep(_WRITE_RETRY_DELAY)
 
         # Device may return transport-level success but channel-level failure.
         # Some firmware versions return empty or minimal response on success.
@@ -360,7 +379,15 @@ class NevotonKomfortApi:
             )
             return True
 
-        error_ch = data["outputs"].get("error_ch", 1)
+        outputs = data["outputs"]
+        if not isinstance(outputs, dict):
+            _LOGGER.debug(
+                "Set response 'outputs' has unexpected type %s, assuming success",
+                type(outputs).__name__,
+            )
+            return True
+
+        error_ch = outputs.get("error_ch", 1)
         if error_ch != 0:
             raise NevotonApiError(
                 f"Failed to set parameter '{parameter}', error_ch={error_ch}"
@@ -369,7 +396,7 @@ class NevotonKomfortApi:
 
     async def async_close(self) -> None:
         """Close the client and release resources."""
-        pass  # No persistent connections to close anymore
+        # No persistent connections to close.
 
     @property
     def host(self) -> str:

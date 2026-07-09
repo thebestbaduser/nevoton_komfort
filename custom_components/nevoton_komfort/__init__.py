@@ -2,17 +2,12 @@
 
 from __future__ import annotations
 
-import logging
-
 from homeassistant.config_entries import ConfigEntry
 from homeassistant.const import CONF_HOST, CONF_PASSWORD, Platform
 from homeassistant.core import HomeAssistant
 
 from .api import NevotonKomfortApi
-from .const import DOMAIN
 from .coordinator import NevotonKomfortCoordinator
-
-_LOGGER = logging.getLogger(__name__)
 
 PLATFORMS: list[Platform] = [
     Platform.CLIMATE,
@@ -54,8 +49,7 @@ async def async_unload_entry(
 ) -> bool:
     """Unload a config entry."""
     if unload_ok := await hass.config_entries.async_unload_platforms(entry, PLATFORMS):
-        # Close API connections if needed
         coordinator = entry.runtime_data
+        await coordinator.async_shutdown()
         await coordinator.api.async_close()
-        return unload_ok
-    return False
+    return unload_ok

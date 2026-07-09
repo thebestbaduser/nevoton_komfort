@@ -2,7 +2,6 @@
 
 from __future__ import annotations
 
-import logging
 from typing import Any
 
 from homeassistant.components.climate import (
@@ -15,6 +14,7 @@ from homeassistant.core import HomeAssistant
 from homeassistant.helpers.entity_platform import AddEntitiesCallback
 
 from . import NevotonKomfortConfigEntry
+from .api import NevotonApiError
 from .const import (
     PARAM_HEAT,
     PARAM_MAIN_POWER,
@@ -25,8 +25,6 @@ from .const import (
 )
 from .coordinator import NevotonKomfortCoordinator
 from .entity import NevotonKomfortEntity
-
-_LOGGER = logging.getLogger(__name__)
 
 
 async def async_setup_entry(
@@ -74,7 +72,7 @@ class NevotonKomfortClimate(NevotonKomfortEntity, ClimateEntity):
         """Return current HVAC mode."""
         main_power = self.coordinator.get_switch_state(PARAM_MAIN_POWER)
         heat_on = self.coordinator.get_switch_state(PARAM_HEAT)
-        
+
         if main_power and heat_on:
             return HVACMode.HEAT
         return HVACMode.OFF
@@ -88,10 +86,13 @@ class NevotonKomfortClimate(NevotonKomfortEntity, ClimateEntity):
             try:
                 await self.coordinator.async_set_parameter(PARAM_HEAT, 1)
                 self.coordinator.apply_local_update(PARAM_HEAT, 1)
-            except Exception:
+            except NevotonApiError:
                 # Rollback: turn off main power if heater activation failed
-                await self.coordinator.async_set_parameter(PARAM_MAIN_POWER, 0)
-                self.coordinator.apply_local_update(PARAM_MAIN_POWER, 0)
+                try:
+                    await self.coordinator.async_set_parameter(PARAM_MAIN_POWER, 0)
+                    self.coordinator.apply_local_update(PARAM_MAIN_POWER, 0)
+                except NevotonApiError:
+                    pass
                 raise
         else:
             # Turn off heater (keep main power for other functions)

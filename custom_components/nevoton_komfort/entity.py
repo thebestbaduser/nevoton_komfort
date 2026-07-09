@@ -22,7 +22,7 @@ class NevotonKomfortEntity(CoordinatorEntity[NevotonKomfortCoordinator]):
         """Initialize the entity."""
         super().__init__(coordinator)
         self._entity_key = entity_key
-        
+
         # Set unique_id using device ID and entity key
         device_id = coordinator.api.device_id or "unknown"
         self._attr_unique_id = f"{device_id}_{entity_key}"
@@ -32,9 +32,10 @@ class NevotonKomfortEntity(CoordinatorEntity[NevotonKomfortCoordinator]):
         """Return device information."""
         device_data = self.coordinator.device_info or {}
         device = device_data.get("device", {})
-        
+        device_id = device.get("id") or self.coordinator.api.device_id or "unknown"
+
         return DeviceInfo(
-            identifiers={(DOMAIN, device.get("id", "unknown"))},
+            identifiers={(DOMAIN, str(device_id))},
             name="Nevoton Komfort",
             manufacturer="NEVOTON",
             model=device_data.get("moduleName", "KOMFORT-WF"),

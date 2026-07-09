@@ -9,9 +9,13 @@ import voluptuous as vol
 
 from homeassistant.config_entries import ConfigFlow, ConfigFlowResult
 from homeassistant.const import CONF_HOST, CONF_PASSWORD
-from homeassistant.helpers.aiohttp_client import async_get_clientsession
 
-from .api import NevotonKomfortApi, NevotonApiError, NevotonAuthError, NevotonConnectionError
+from .api import (
+    NevotonApiError,
+    NevotonAuthError,
+    NevotonConnectionError,
+    NevotonKomfortApi,
+)
 from .const import DOMAIN
 
 _LOGGER = logging.getLogger(__name__)
@@ -41,11 +45,14 @@ class NevotonKomfortConfigFlow(ConfigFlow, domain=DOMAIN):
         Returns:
             Device info dict if successful, None if validation failed
         """
-        session = async_get_clientsession(self.hass)
-        api = NevotonKomfortApi(
-            host=user_input[CONF_HOST],
-            password=user_input[CONF_PASSWORD],
-        )
+        try:
+            api = NevotonKomfortApi(
+                host=user_input[CONF_HOST],
+                password=user_input[CONF_PASSWORD],
+            )
+        except NevotonConnectionError:
+            errors["base"] = "cannot_connect"
+            return None
 
         try:
             return await api.async_get_device_info()
@@ -53,7 +60,11 @@ class NevotonKomfortConfigFlow(ConfigFlow, domain=DOMAIN):
             errors["base"] = "invalid_auth"
         except NevotonConnectionError:
             errors["base"] = "cannot_connect"
-        except NevotonApiError:
+        except NevotonApiError as err:
+            _LOGGER.debug("Unexpected API error during validation: %s", err)
+            errors["base"] = "unknown"
+        except Exception:
+            _LOGGER.exception("Unexpected exception during validation")
             errors["base"] = "unknown"
 
         return None
@@ -71,7 +82,7 @@ class NevotonKomfortConfigFlow(ConfigFlow, domain=DOMAIN):
                 # Use device ID as unique identifier
                 device_id = device_info.get("device", {}).get("id")
                 if device_id:
-                    await self.async_set_unique_id(device_id)
+                    await self.async_set_unique_id(str(device_id))
                     self._abort_if_unique_id_configured()
 
                 # Get model name for title
@@ -101,7 +112,7 @@ class NevotonKomfortConfigFlow(ConfigFlow, domain=DOMAIN):
                 # Verify we're reconfiguring the same device
                 device_id = device_info.get("device", {}).get("id")
                 if device_id:
-                    await self.async_set_unique_id(device_id)
+                    await self.async_set_unique_id(str(device_id))
                     self._abort_if_unique_id_mismatch(reason="wrong_device")
 
                 return self.async_update_reload_and_abort(
