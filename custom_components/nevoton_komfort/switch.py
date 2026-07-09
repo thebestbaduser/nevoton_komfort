@@ -3,7 +3,6 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
-import logging
 from typing import Any
 
 from homeassistant.components.switch import (
@@ -23,8 +22,6 @@ from .const import (
 )
 from .coordinator import NevotonKomfortCoordinator
 from .entity import NevotonKomfortEntity
-
-_LOGGER = logging.getLogger(__name__)
 
 
 @dataclass(frozen=True, kw_only=True)

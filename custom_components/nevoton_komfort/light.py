@@ -2,7 +2,6 @@
 
 from __future__ import annotations
 
-import logging
 from typing import Any
 
 from homeassistant.components.light import (
@@ -21,8 +20,6 @@ from .const import (
 )
 from .coordinator import NevotonKomfortCoordinator
 from .entity import NevotonKomfortEntity
-
-_LOGGER = logging.getLogger(__name__)
 
 
 async def async_setup_entry(
@@ -55,27 +52,29 @@ class NevotonKomfortLight(NevotonKomfortEntity, LightEntity):
     def brightness(self) -> int | None:
         """Return the brightness of the light (0-255)."""
         dimmer = self.coordinator.get_dimmer_value(PARAM_LIGHT_DIMMER)
-        if dimmer is not None:
-            # Convert 0-6 scale to 0-255
-            # When dimmer is 0, light might still be on via Light_switch
-            # Dimmer 1-6 maps to brightness levels
-            if dimmer == 0:
-                # Minimum visible brightness when on (approximately 1/6 of max)
-                return int(255 / LIGHT_DIMMER_MAX)
-            return int((dimmer / LIGHT_DIMMER_MAX) * 255)
-        return None
+        if dimmer is None:
+            return None
+
+        # Convert 0-6 scale to 0-255.
+        # Dimmer 0 still maps to a minimum visible level when the light switch is on.
+        if dimmer <= 0:
+            return int(255 / LIGHT_DIMMER_MAX)
+        return int((min(dimmer, LIGHT_DIMMER_MAX) / LIGHT_DIMMER_MAX) * 255)
 
     async def async_turn_on(self, **kwargs: Any) -> None:
         """Turn on the light."""
         # First, turn on the light switch
         await self.coordinator.async_set_parameter(PARAM_LIGHT, 1)
         self.coordinator.apply_local_update(PARAM_LIGHT, 1)
-        
+
         # Then set brightness if provided
         if ATTR_BRIGHTNESS in kwargs:
             brightness = kwargs[ATTR_BRIGHTNESS]
             # Convert 0-255 to 1-6 (0 means off on the device)
-            dimmer_value = max(1, min(LIGHT_DIMMER_MAX, round(brightness / 255 * LIGHT_DIMMER_MAX)))
+            dimmer_value = max(
+                1,
+                min(LIGHT_DIMMER_MAX, round(brightness / 255 * LIGHT_DIMMER_MAX)),
+            )
             await self.coordinator.async_set_parameter(PARAM_LIGHT_DIMMER, dimmer_value)
             self.coordinator.apply_local_update(PARAM_LIGHT_DIMMER, dimmer_value)
 

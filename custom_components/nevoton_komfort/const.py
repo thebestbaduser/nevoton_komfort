@@ -2,10 +2,6 @@
 
 DOMAIN = "nevoton_komfort"
 
-# Configuration
-CONF_HOST = "host"
-CONF_PASSWORD = "password"
-
 # API endpoints
 API_DEVICE_DESCRIPTION = "/get/m2m/deviceDescription"
 API_GET_INPUTS = "/get/m2m/inputs"

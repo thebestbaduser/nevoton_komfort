@@ -11,11 +11,16 @@ from typing import Any
 
 from homeassistant.config_entries import ConfigEntry
 from homeassistant.core import HomeAssistant
-from homeassistant.helpers.update_coordinator import DataUpdateCoordinator, UpdateFailed
 from homeassistant.exceptions import ConfigEntryAuthFailed
+from homeassistant.helpers.update_coordinator import DataUpdateCoordinator, UpdateFailed
 
-from .api import NevotonKomfortApi, NevotonApiError, NevotonAuthError, NevotonConnectionError
-from .const import DEFAULT_SCAN_INTERVAL, DOMAIN
+from .api import (
+    NevotonApiError,
+    NevotonAuthError,
+    NevotonConnectionError,
+    NevotonKomfortApi,
+)
+from .const import DEFAULT_SCAN_INTERVAL, DOMAIN, PARAM_STATUS
 
 _LOGGER = logging.getLogger(__name__)
 _PARAMETER_SPLIT_RE = re.compile(r"(?<!^)(?=[A-Z])|[^0-9A-Za-z]+")
@@ -118,7 +123,9 @@ class NevotonKomfortCoordinator(DataUpdateCoordinator[dict[str, Any]]):
                         _TRANSIENT_FAILURE_TOLERANCE,
                     )
                     return self.data
-                return state
+                raise UpdateFailed(
+                    "Device returned no specific parameters after repeated attempts"
+                )
 
             self._consecutive_update_failures = 0
             return self._merge_pending_writes(state)
@@ -165,7 +172,9 @@ class NevotonKomfortCoordinator(DataUpdateCoordinator[dict[str, Any]]):
             return key
 
         if alias := self._parameter_aliases.get(key):
-            return alias
+            if alias in self.data:
+                return alias
+            self._parameter_aliases.pop(key, None)
 
         best_candidate: str | None = None
         best_score = 0
@@ -261,8 +270,18 @@ class NevotonKomfortCoordinator(DataUpdateCoordinator[dict[str, Any]]):
             await self.async_request_refresh()
         except asyncio.CancelledError:
             raise
-        except Exception as err:
+        except Exception as err:  # noqa: BLE001 - keep entity writes non-fatal
             _LOGGER.warning("Post-write refresh failed: %s", err)
+
+    async def async_shutdown(self) -> None:
+        """Cancel background work before unloading the integration."""
+        if self._post_write_refresh_task and not self._post_write_refresh_task.done():
+            self._post_write_refresh_task.cancel()
+            try:
+                await self._post_write_refresh_task
+            except asyncio.CancelledError:
+                pass
+            self._post_write_refresh_task = None
 
     @property
     def device_info(self) -> dict[str, Any] | None:
@@ -271,10 +290,10 @@ class NevotonKomfortCoordinator(DataUpdateCoordinator[dict[str, Any]]):
 
     def get_switch_state(self, key: str) -> bool:
         """Get switch state from data."""
-        if self.data:
-            value = self.data.get(self._resolve_parameter_name(key), 0)
-            return value == 1
-        return False
+        if not self.data:
+            return False
+        value = self.data.get(self._resolve_parameter_name(key))
+        return value == 1
 
     def get_sensor_value(self, key: str) -> float | int | None:
         """Get sensor value from data."""
@@ -297,5 +316,5 @@ class NevotonKomfortCoordinator(DataUpdateCoordinator[dict[str, Any]]):
     def get_status(self) -> int | None:
         """Get device status."""
         if self.data:
-            return self.data.get(self._resolve_parameter_name("Status"))
+            return self.data.get(self._resolve_parameter_name(PARAM_STATUS))
         return None
